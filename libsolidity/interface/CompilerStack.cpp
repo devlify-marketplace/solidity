@@ -1441,6 +1441,7 @@ void CompilerStack::assembleYul(
 		m_evmVersion,
 		_contract.location(),
 		compiledContract.object.bytecode.size(),
+		_contract.location(),
 		compiledContract.runtimeObject.bytecode.size()
 	);
 }

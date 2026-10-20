@@ -14,6 +14,7 @@ Compiler Features:
 * Yul Optimizer: Improve performance of `DataFlowAnalyzer` using flat hash containers.
 
 Bugfixes:
+* EVM Assembly Import: Fix `--evm-version` and `settings.evmVersion` being ignored when assembling imported EVM assembly JSON.
 * Parser: Fix inverted version pragma range comparison for components in the range [2**31, 2**32).
 * Yul Parser: Fix `@use-src` source indices that are not decimal numbers being silently truncated instead of rejected.
 

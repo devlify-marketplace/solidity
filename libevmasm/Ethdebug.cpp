@@ -68,16 +68,23 @@ schema::materials::Reference sourceReference(unsigned _sourceID)
 	};
 }
 
-std::optional<schema::program::Context> instructionContext(AssemblyItems const& _codeSection, size_t _assemblyItemIndex, unsigned _sourceID)
+std::optional<schema::program::Context> instructionContext(
+	AssemblyItems const& _codeSection,
+	size_t _assemblyItemIndex,
+	std::map<std::string, unsigned> const& _sourceIndices
+)
 {
 	solAssert(_assemblyItemIndex < _codeSection.size());
 	langutil::SourceLocation const& location = _codeSection.at(_assemblyItemIndex).location();
-	if (!location.isValid())
+	if (!location.isValid() || !location.sourceName)
+		return std::nullopt;
+	auto const source = _sourceIndices.find(*location.sourceName);
+	if (source == _sourceIndices.end())
 		return std::nullopt;
 
 	return schema::program::Context{
 		schema::materials::SourceRange{
-			.source = sourceReference(_sourceID),
+			.source = sourceReference(source->second),
 			.range = locationRange(location)
 		},
 		std::nullopt,
@@ -85,7 +92,11 @@ std::optional<schema::program::Context> instructionContext(AssemblyItems const& 
 	};
 }
 
-std::vector<schema::program::Instruction> programInstructions(Assembly const& _assembly, LinkerObject const& _linkerObject, unsigned const _sourceID)
+std::vector<schema::program::Instruction> programInstructions(
+	Assembly const& _assembly,
+	LinkerObject const& _linkerObject,
+	std::map<std::string, unsigned> const& _sourceIndices
+)
 {
 	auto const& locations = _linkerObject.codeSectionLocation;
 	AssemblyItems const& items = _assembly.items();
@@ -111,7 +122,7 @@ std::vector<schema::program::Instruction> programInstructions(Assembly const& _a
 		instructions.emplace_back(schema::program::Instruction{
 			.offset = schema::data::Unsigned{start},
 			.operation = instructionOperation(_assembly, _linkerObject, start, end),
-			.context = instructionContext(items, currentInstruction.assemblyItemIndex, _sourceID)
+			.context = instructionContext(items, currentInstruction.assemblyItemIndex, _sourceIndices)
 		});
 	}
 
@@ -171,7 +182,13 @@ schema::materials::Compilation materialCompilation(std::vector<Source> const& _s
 
 } // anonymous namespace
 
-Json ethdebug::program(std::string_view _name, unsigned _sourceID, Assembly const& _assembly, LinkerObject const& _linkerObject)
+Json ethdebug::program(
+	std::string_view _name,
+	unsigned _sourceID,
+	Assembly const& _assembly,
+	LinkerObject const& _linkerObject,
+	std::map<std::string, unsigned> const& _sourceIndices
+)
 {
 	return schema::Program{
 		.compilation = std::nullopt,
@@ -187,7 +204,7 @@ Json ethdebug::program(std::string_view _name, unsigned _sourceID, Assembly cons
 		},
 		.environment = _assembly.isCreation() ? schema::Program::Environment::CREATE : schema::Program::Environment::CALL,
 		.context = std::nullopt,
-		.instructions = programInstructions(_assembly, _linkerObject, _sourceID)
+		.instructions = programInstructions(_assembly, _linkerObject, _sourceIndices)
 	};
 }
 

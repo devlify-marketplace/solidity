@@ -2377,14 +2377,20 @@ BOOST_AUTO_TEST_CASE(ethdebug_program_output_rejects_ssa_cfg)
 	BOOST_CHECK(containsError(result, "UnimplementedFeatureError", "SSA CFG codegen does not yet support ethdebug."));
 }
 
-BOOST_AUTO_TEST_CASE(ethdebug_program_output_matches_two_stage_compilation)
+BOOST_DATA_TEST_CASE(ethdebug_program_output_matches_two_stage_compilation, boost::unit_test::data::make({false, true}), multipleSources)
 {
 	// The program output of a contract compiled from Solidity without the
 	// ethdebug debug info component matches the one of its IR compiled as Yul,
 	// apart from the contract name, which Yul input has no source for.
 	frontend::StandardCompiler compiler;
 	std::map<std::string, Json> firstSources;
-	firstSources["fileA"] = "contract C { uint256 value; function f(uint256 argument) public { value = argument; } }";
+	if (multipleSources)
+	{
+		firstSources["fileA"] = "import \"fileB\"; contract C is Base { function f(uint256 argument) public { setValue(argument); } }";
+		firstSources["fileB"] = "contract Base { uint256 value; function setValue(uint256 argument) internal { value = argument; } }";
+	}
+	else
+		firstSources["fileA"] = "contract C { uint256 value; function f(uint256 argument) public { value = argument; } }";
 	Json firstResult = compiler.compile(generateExperimentalStandardJson(
 		true,
 		{},
@@ -2414,6 +2420,14 @@ BOOST_AUTO_TEST_CASE(ethdebug_program_output_matches_two_stage_compilation)
 		BOOST_CHECK(singleStageOutput["environment"] == twoStageOutput["environment"]);
 		BOOST_CHECK(singleStageOutput["instructions"].is_array() && !singleStageOutput["instructions"].empty());
 		BOOST_CHECK_EQUAL(Json::diff(singleStageOutput["instructions"], twoStageOutput["instructions"]).dump(), "[]");
+		if (multipleSources && object == "deployedBytecode")
+		{
+			bool hasImportedSource = false;
+			for (auto const& instruction: singleStageOutput["instructions"])
+				if (instruction.contains("context") && instruction["context"]["code"]["source"]["id"] == 1)
+					hasImportedSource = true;
+			BOOST_CHECK(hasImportedSource);
+		}
 	}
 }
 

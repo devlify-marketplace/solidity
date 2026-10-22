@@ -23,6 +23,8 @@
 #include <libevmasm/Assembly.h>
 #include <libevmasm/LinkerObject.h>
 
+#include <map>
+
 namespace solidity::evmasm::ethdebug
 {
 
@@ -35,7 +37,13 @@ struct Source
 };
 
 // returns ethdebug/format/program.
-Json program(std::string_view _name, unsigned _sourceID, Assembly const& _assembly, LinkerObject const& _linkerObject);
+Json program(
+	std::string_view _name,
+	unsigned _sourceID,
+	Assembly const& _assembly,
+	LinkerObject const& _linkerObject,
+	std::map<std::string, unsigned> const& _sourceIndices
+);
 
 // returns ethdebug/format/info/resources
 Json resources(std::vector<Source> const& _sources, std::string_view _version);

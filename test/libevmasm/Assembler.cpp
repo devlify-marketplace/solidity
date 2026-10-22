@@ -431,7 +431,7 @@ BOOST_AUTO_TEST_CASE(ethdebug_program_last_instruction_with_immediate_arguments)
 		assembly.append(AssemblyItem{0x11223344});
 		LinkerObject output = assembly.assemble();
 
-		Json const program = ethdebug::program("", 0, assembly, output);
+		Json const program = ethdebug::program("", 0, assembly, output, {});
 		BOOST_REQUIRE(program["instructions"].size() == 1);
 		BOOST_REQUIRE(program["instructions"][0]["operation"]["mnemonic"] == "PUSH4");
 		BOOST_REQUIRE(program["instructions"][0]["operation"]["arguments"][0] == "0x11223344");
@@ -442,13 +442,47 @@ BOOST_AUTO_TEST_CASE(ethdebug_program_last_instruction_with_immediate_arguments)
 		assembly.append(AssemblyItem{0x1122334455});
 		LinkerObject output = assembly.assemble();
 
-		Json const program = ethdebug::program("", 0, assembly, output);
+		Json const program = ethdebug::program("", 0, assembly, output, {});
 		BOOST_REQUIRE(program["instructions"].size() == 2);
 		BOOST_REQUIRE(program["instructions"][0]["operation"]["mnemonic"] == "PUSH0");
 		BOOST_REQUIRE(!program["instructions"][0]["operation"].contains("arguments"));
 		BOOST_REQUIRE(program["instructions"][1]["operation"]["mnemonic"] == "PUSH5");
 		BOOST_REQUIRE(program["instructions"][1]["operation"]["arguments"][0] == "0x1122334455");
 	}
+}
+
+BOOST_AUTO_TEST_CASE(ethdebug_program_instruction_sources)
+{
+	EVMVersion evmVersion = solidity::test::CommonOptions::get().evmVersion();
+	Assembly assembly{evmVersion, true, {}};
+	auto const sourceA = std::make_shared<std::string const>("A.sol");
+	auto const sourceB = std::make_shared<std::string const>("B.sol");
+	auto const unknownSource = std::make_shared<std::string const>("unknown.yul");
+	for (auto const& location: std::vector<langutil::SourceLocation>{
+		{2, 5, sourceA},
+		{9, 13, sourceB},
+		{0, 1, unknownSource},
+		{0, 1, nullptr},
+		{}
+	})
+	{
+		assembly.setSourceLocation(location);
+		assembly.append(AssemblyItem{Instruction::ADDRESS});
+	}
+	LinkerObject const output = assembly.assemble();
+	Json const program = ethdebug::program("C", 3, assembly, output, {{"A.sol", 3}, {"B.sol", 7}});
+	BOOST_REQUIRE(program["contract"]["definition"]["source"]["id"] == 3);
+	auto const& instructions = program["instructions"];
+	BOOST_REQUIRE(instructions.size() == 5);
+	BOOST_CHECK(instructions[0]["context"]["code"]["source"]["id"] == 3);
+	BOOST_CHECK(instructions[0]["context"]["code"]["range"]["offset"] == 2);
+	BOOST_CHECK(instructions[0]["context"]["code"]["range"]["length"] == 3);
+	BOOST_CHECK(instructions[1]["context"]["code"]["source"]["id"] == 7);
+	BOOST_CHECK(instructions[1]["context"]["code"]["range"]["offset"] == 9);
+	BOOST_CHECK(instructions[1]["context"]["code"]["range"]["length"] == 4);
+	BOOST_CHECK(!instructions[2].contains("context"));
+	BOOST_CHECK(!instructions[3].contains("context"));
+	BOOST_CHECK(!instructions[4].contains("context"));
 }
 
 BOOST_AUTO_TEST_CASE(ethdebug_resources)

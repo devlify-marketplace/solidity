@@ -254,6 +254,13 @@ YulStack::assembleWithDeployed(std::optional<std::string_view> _deployName, bool
 		return {MachineAssemblyObject{}, MachineAssemblyObject{}};
 	}
 
+	std::map<std::string, unsigned> sourceIndexMap;
+	if (debugInfoSelection().ethdebug)
+	{
+		m_parserResult->collectSourceIndices(sourceIndexMap);
+		sourceIndexMap.emplace(m_charStream->name(), 0);
+	}
+
 	MachineAssemblyObject creationObject;
 	MachineAssemblyObject deployedObject;
 	try
@@ -267,14 +274,18 @@ YulStack::assembleWithDeployed(std::optional<std::string_view> _deployName, bool
 			{{m_charStream->name(), 0}}
 		);
 		if (debugInfoSelection().ethdebug)
-			creationObject.ethdebug = evmasm::ethdebug::program(creationObject.assembly->name(), 0, *creationObject.assembly, *creationObject.bytecode);
+			creationObject.ethdebug = evmasm::ethdebug::program(
+				creationObject.assembly->name(), 0, *creationObject.assembly, *creationObject.bytecode, sourceIndexMap
+			);
 
 		if (deployedAssembly)
 		{
 			deployedObject.bytecode = std::make_shared<evmasm::LinkerObject>(deployedAssembly->assemble());
 			deployedObject.assembly = deployedAssembly;
 			if (debugInfoSelection().ethdebug)
-				deployedObject.ethdebug = evmasm::ethdebug::program(deployedObject.assembly->name(), 0, *deployedObject.assembly, *deployedObject.bytecode);
+				deployedObject.ethdebug = evmasm::ethdebug::program(
+					deployedObject.assembly->name(), 0, *deployedObject.assembly, *deployedObject.bytecode, sourceIndexMap
+				);
 			deployedObject.sourceMappings = std::make_unique<std::string>(
 				evmasm::AssemblyItem::computeSourceMapping(
 					deployedAssembly->items(),

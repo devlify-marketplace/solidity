@@ -668,12 +668,14 @@ FunctionDefinition Parser::parseFunctionDefinition()
 	expectToken(Token::Function);
 	funDef.name = expectAsmIdentifier();
 	expectToken(Token::LParen);
-	while (currentToken() != Token::RParen)
+	if (currentToken() != Token::RParen)
 	{
 		funDef.parameters.emplace_back(parseNameWithDebugData());
-		if (currentToken() == Token::RParen)
-			break;
-		expectToken(Token::Comma);
+		while (currentToken() != Token::RParen)
+		{
+			expectToken(Token::Comma);
+			funDef.parameters.emplace_back(parseNameWithDebugData());
+		}
 	}
 	expectToken(Token::RParen);
 	if (currentToken() == Token::RightArrow)

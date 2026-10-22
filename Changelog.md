@@ -1,3 +1,9 @@
+### 0.8.39 (unreleased)
+
+Bugfixes:
+* Parser: Reject version pragma numbers with more than three dot-separated components.
+
+
 ### 0.8.38 (2026-10-22)
 
 Important Bugfixes:

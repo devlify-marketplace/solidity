@@ -182,6 +182,9 @@ BOOST_AUTO_TEST_CASE(positive_range)
 		{"^1.2 ^1", "1.4.2"},
 		{"^0", "0.5.1"},
 		{"^0", "0.1.1"},
+		{"1.2.3 1", "1.2.3"},
+		{">=1.2.3 <2.0.0", "1.2.3"},
+		{"1.2.3 - 2.0.0", "1.2.3"},
 	};
 	for (auto const& t: tests)
 	{
@@ -319,6 +322,48 @@ BOOST_AUTO_TEST_CASE(unsigned_components_above_signed_int_max)
 			"Version \"" + t.second + "\" did satisfy expression \"" + t.first + "\" " +
 			"(although it should not)"
 		);
+	}
+}
+
+BOOST_AUTO_TEST_CASE(reject_four_part_versions)
+{
+	std::vector<std::string> expressions = {
+		"1.2.3.0",
+		"1.2.3.1",
+		"1.2.3 .0",
+		"1.2.3.",
+		"1.2.3 .",
+		"^1.2.3.0",
+		">=1.2.3.0",
+		"1.2.3.0 - 2.0.0",
+		"1.2.3 - 2.0.0.0",
+		"1.2.3 || 2.0.0.0",
+		"1.2.*.0",
+		"\"1.2.3.0\"",
+	};
+	for (auto const& expression: expressions)
+	{
+		BOOST_TEST_CONTEXT(expression)
+		{
+			CharStream stream(expression, "");
+			Scanner scanner{stream};
+			std::vector<std::string> literals;
+			std::vector<Token> tokens;
+			while (scanner.currentToken() != Token::EOS)
+			{
+				auto token = scanner.currentToken();
+				std::string literal = scanner.currentLiteral();
+				if (literal.empty() && TokenTraits::toString(token))
+					literal = TokenTraits::toString(token);
+				literals.push_back(literal);
+				tokens.push_back(token);
+				scanner.next();
+			}
+			BOOST_CHECK_THROW(
+				SemVerMatchExpressionParser(tokens, literals).parse(),
+				SemVerError
+			);
+		}
 	}
 }
 

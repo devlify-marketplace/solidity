@@ -253,7 +253,11 @@ SemVerMatchExpression::MatchComponent SemVerMatchExpressionParser::parseMatchCom
 		component.version.numbers[component.levelsPresent] = parseVersionPart();
 		component.levelsPresent++;
 		if (currentChar() == '.')
+		{
+			if (component.levelsPresent == 3)
+				solThrow(SemVerError, "Expected at most three version components.");
 			nextChar();
+		}
 		else
 			break;
 	}
